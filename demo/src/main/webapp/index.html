@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>index</title>
+<script type="text/javascript" src="assets/js/jquery-1.10.2.min.js"></script>
+<script type="text/javascript" src="assets/js/sockjs-0.3.4.js"></script>
+<script type="text/javascript" src="assets/js/sockjs-0.3.4.min.js"></script>
+<script type="text/javascript" src="assets/js/stomp.js"></script>
+
+</head>
+<body>
+	<div style="width:500px;height:600px;margin:0 auto;">
+		<div id="titleName" style="width:100%;height:50px;text-align:center;line-height:50px;">
+			清先输入你的名字：<input type="text" id="userName"/>
+			<button type="button" id="button1" onclick="addName();"> 确认 </button>
+		</div>
+		<div id="messageText" style="width:498px;height:250px;overflow-y:scroll;border:#333 1px solid">
+			<!-- 文本显示内容 -->
+		</div>
+		<span>输入框</span>
+		<div style="width:500px;height:60px;">
+			<textarea style="width:494px;height:60px;resize:none;" id="message"></textarea>
+		</div>
+		<div style="width:450px;height:50px;line-height:50px;text-align:right;padding-right:50px;">
+			<button type="button" onclick="connect();"> 连接并订阅 </button> 
+			<button type="button" onclick="sendMessage();"> 发送 </button> 
+			<button type="button" onclick="resert();"> 清空 </button>
+		</div>
+	</div>
+	<script type="text/javascript">
+		var stompClient = null ;
+		var myUserName = null ;
+		function connect(){
+			//连接服务端demo是项目名称，websocket就是WebSocketConfig中的
+			//registry.addEndpoint("/websocket").withSockJS();内容
+			var socket = new SockJS("http://"+window.location.host+"/demo/websocket");
+		    stompClient = Stomp.over(socket);//将socket连接交给Stomp这个js库来管理
+		    stompClient.connect('', '', function (frame) {//Stomp连接服务端，前面两个参数是用户名和密码
+		        if(frame!=""||frame!=null){
+		        	showMessage("system","connect success ");		        
+		        }else{
+		        	showMessage("system","connect error ");
+		        }
+		        
+		        //订阅地址，更形象的说就是我的qq加入了'/message'这个群，那么这个群要是有消息就会发给我
+		        stompClient.subscribe('/message', function (data) {
+			         var user = JSON.parse(data.body);
+			         showMessage(user.name,user.content);
+			         resert();
+			     });
+		    },function(){
+		    	connect();//当连接断开的时候做一个简单的轮训
+		    });
+		};
+		
+		//发送数据到服务端，"/app/userChat/chat"中app是websocket的首地址用于和其他的普通地址区分开
+		//后面的userChat/chat就是websocket的@MessageMapping注释 中的内容，相当于@RequestMapping的作用
+		function sendMessage(){
+				stompClient.send("/app/userChat/chat", {},JSON.stringify({
+		    		"name":encodeURIComponent(myUserName),
+					"content":encodeURIComponent($("#message").val())
+		        }));
+		};
+		
+		//显示聊天的信息，自己的显示在右边，别人的显示在左边，系统提示显示在中间，就像是qq一样
+		function showMessage(name,message){
+			name = decodeURIComponent(name);
+			message = decodeURIComponent(message);
+			var align = "left";
+			if(name==myUserName){
+				align = "right";
+				var temp = name ;
+				name = message ;
+				message = temp ;
+			}else if(name=="system"){
+				align = "center";
+			}
+        	var phtml = "<p style=\"text-align:"+align+";\">"+
+        	name+" : "+message+"</p>";
+        	$("#messageText").append(phtml);
+		};
+		
+		//给每个新打开的页面添加用户名称，作为标识
+		function addName(){
+			myUserName = $("#userName").val();
+			if(myUserName==""||name==" "){
+				showMessage("error","请先输入你的姓名！");
+			}else{
+				$("#titleName").html("WEB QQ hello : "+myUserName);
+			}
+			showMessage("system",myUserName);
+			
+		};
+		
+		//清空输入框
+		function resert(){
+			$("#message").val("");
+		};
+		
+		
+	</script>
+</body>
+</html>
